@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Here4CUT 📸</title>
+  <style>
+    /* 모바일 터치 및 스크롤 바운스 방지 */
+    * { 
+      box-sizing: border-box; 
+      -webkit-tap-highlight-color: transparent; 
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    
+    /* PC 여백은 어둡게 처리하고, 화면 중앙에 모바일 뷰를 띄웁니다 */
+    body, html { 
+      margin: 0; 
+      padding: 0; 
+      width: 100%; 
+      height: 100%; 
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+      background: #121212; 
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+    }
+
+    /* 스마트폰 규격(최대 480px)으로 화면 제한 */
+    .phone { 
+      position: relative; 
+      width: 100%; 
+      max-width: 480px; 
+      height: 100%; 
+      background: #fff; 
+      overflow: hidden; 
+      display: flex; 
+      flex-direction: column; 
+      box-shadow: 0 10px 40px rgba(0,0,0,0.5); 
+    }
+
+    .screen { 
+      position: absolute; 
+      top: 0; 
+      left: 0; 
+      width: 100%; 
+      height: 100%; 
+      display: none; 
+      flex-direction: column; 
+      z-index: 10; 
+    }
+    .screen.active { 
+      display: flex; 
+    }
+    .bg { 
+      position: absolute; 
+      top: 0; 
+      left: 0; 
+      width: 100%; 
+      height: 100%; 
+      object-fit: cover; 
+      z-index: 1; 
+    }
+    .content { 
+      position: relative; 
+      z-index: 2; 
+      flex: 1; 
+      display: flex; 
+      flex-direction: column; 
+      padding: 24px; 
+      padding-bottom: calc(24px + env(safe-area-inset-bottom)); 
+      padding-top: calc(24px + env(safe-area-inset-top)); 
+    }
+    
+    /* 1. INDEX */
+    #scr-index .content { justify-content: flex-end; align-items: center; padding-bottom: 80px; }
+    
+    /* 2. INF */
+    #scr-inf .content { justify-content: space-between; padding: 40px 24px; background: #f9f9f9; }
+    .inf-title { font-size: 24px; font-weight: bold; color: #333; text-align: center; margin-top: 20px; }
+    .inf-box { background: #fff; border-radius: 20px; padding: 28px; box-shadow: 0 8px 24px rgba(0,0,0,0.06); font-size: 15px; color: #555; line-height: 1.8; }
+    
+    /* 3. READY */
+    #scr-ready .content { justify-content: flex-end; align-items: center; padding-bottom: 80px; }
+    
+    /* 4. SHOOT (카메라 촬영) */
+    #scr-shoot .content { padding: 0; background: #000; justify-content: space-between; }
+    
+    /* 촬영 화면 비율 3:4 고정 */
+    .video-wrap { 
+      position: relative; 
+      width: 100%; 
+      aspect-ratio: 3/4; 
+      background: #000; 
+      overflow: hidden; 
+      display: flex; 
+      justify-content: center; 
+      align-items: center; 
+      margin: auto 0;
+    }
+    #webcam { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+    .shoot-overlay { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.6); color: #fff; padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: bold; }
+    .counter-txt { position: absolute; font-size: 120px; font-weight: 900; color: #fff; text-shadow: 0 4px 20px rgba(0,0,0,0.5); display: none; z-index: 5; animation: scaleUp 0.5s ease-out; }
+    .shoot-btn-wrap { height: 90px; background: #000; display: flex; justify-content: center; align-items: center; padding-bottom: env(safe-area-inset-bottom); }
+    
+    /* 5. SELECT */
+    #scr-select .content { background: #f9f9f9; padding: 20px; height: 100%; }
+    .grid-4 { 
+      display: grid; 
+      grid-template-columns: repeat(2, 1fr); 
+      gap: 12px; 
+      margin-top: 15px; 
+      flex: 1; 
+      overflow-y: auto; 
+      min-height: 0; 
+      padding-bottom: 16px;
+    }
+    .sel-img-box { position: relative; background: #ddd; border-radius: 12px; overflow: hidden; aspect-ratio: 3/4; cursor: pointer; border: 3px solid transparent; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+    .sel-img-box img { width: 100%; height: 100%; object-fit: cover; }
+    .sel-img-box.selected { border-color: #3498db; }
+    .sel-num { position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.5); color: #fff; width: 24px; height: 24px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 12px; font-weight: bold; }
+    .sel-img-box.selected .sel-num { background: #3498db; }
+    
+    /* 6. FRAME */
+    #scr-frame .content { background: #f9f9f9; align-items: center; justify-content: space-between; }
+    .preview-canvas-wrap { flex: 1; display: flex; justify-content: center; align-items: center; padding: 10px; width: 100%; overflow: hidden; }
+    #preview-canvas { max-width: 100%; max-height: 70vh; aspect-ratio: 9/16; box-shadow: 0 10px 30px rgba(0,0,0,0.15); background: #fff; border-radius: 4px; }
+    
+    /* 7. RESULT */
+    #scr-result .content { background: #fff; align-items: center; justify-content: space-between; }
+    .result-img-wrap { flex: 1; display: flex; justify-content: center; align-items: center; width: 100%; overflow: hidden; }
+    #result-img { max-width: 100%; max-height: 65vh; aspect-ratio: 9/16; box-shadow: 0 10px 30px rgba(0,0,0,0.2); border-radius: 4px; }
+    
+    /* 공통 버튼 */
+    .btn-main { width: 100%; max-width: 340px; height: 56px; background: #3498db; color: #fff; border: none; border-radius: 28px; font-size: 18px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3); transition: transform 0.1s; display: flex; justify-content: center; align-items: center; margin: 5px auto; flex-shrink: 0; }
+    .btn-main:active { transform: scale(0.97); }
+    .btn-main:disabled { background: #ccc; box-shadow: none; cursor: not-allowed; }
+    .top-title { font-size: 20px; font-weight: bold; color: #333; text-align: center; margin: 10px 0; }
+    
+    @keyframes scaleUp {
+      from { transform: scale(0.5); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="phone">
+
+    <!-- 1. INDEX 화면 -->
+    <div class="screen active" id="scr-index">
+      <img class="bg" src="images/main-bg.png" alt="Here4CUT 메인 배경">
+      <div class="content">
+        <button class="btn-main" onclick="goTo('scr-inf')">시작하기</button>
+      </div>
+    </div>
+
+    <!-- 2. INF 화면 -->
+    <div class="screen" id="scr-inf">
+      <div class="content">
+        <div class="inf-title">Here4CUT 이용 안내</div>
+        <div class="inf-box">
+          1. 카메라 권한 허용 창이 뜨면 <strong>'허용'</strong>을 꼭 선택해 주세요.<br><br>
+          2. 촬영은 총 6회 진행되며, <strong>5초 간격으로 연속 자동 촬영</strong>됩니다.<br><br>
+          3. 6장의 사진 중 마음에 드는 4장을 골라 네 컷의 인생샷을 완성해 보세요!
+        </div>
+        <button class="btn-main" onclick="goTo('scr-ready')">확인했습니다</button>
+      </div>
+    </div>
+
+    <!-- 3. READY 화면 -->
+    <div class="screen" id="scr-ready">
+      <img class="bg" src="images/ready-bg.png" alt="준비 배경">
+      <div class="content">
+        <button class="btn-main" onclick="startFlow()">촬영 시작!</button>
+      </div>
+    </div>
+
+    <!-- 4. SHOOT 화면 -->
+    <div class="screen" id="scr-shoot">
+      <div class="content">
+        <div class="video-wrap">
+          <video id="webcam" autoplay playsinline muted></video>
+          <div class="shoot-overlay" id="shoot-progress">준비 중...</div>
+          <div class="counter-txt" id="counter-txt">5</div>
+        </div>
+        <div class="shoot-btn-wrap">
+          <span style="color: #fff; font-weight: bold; font-size:16px;" id="shoot-status-msg">포즈를 준비하세요!</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. SELECT 화면 -->
+    <div class="screen" id="scr-select">
+      <div class="content">
+        <div class="top-title">사진 4장 선택 ( <span id="sel-count">0</span> / 4 )</div>
+        <div class="grid-4" id="select-grid"></div>
+        <button class="btn-main" id="btn-select-next" disabled onclick="goToFrameScreen()">디자인 완성하기</button>
+      </div>
+    </div>
+
+    <!-- 6. FRAME 화면 -->
+    <div class="screen" id="scr-frame">
+      <div class="content">
+        <div class="top-title">레이아웃 완성</div>
+        <div class="preview-canvas-wrap">
+          <canvas id="preview-canvas" width="2160" height="3840" style="width:270px; height:480px;"></canvas>
+        </div>
+        <button class="btn-main" onclick="generateResult()">인화하기 ✨</button>
+      </div>
+    </div>
+
+    <!-- 7. RESULT 화면 -->
+    <div class="screen" id="scr-result">
+      <div class="content">
+        <div class="top-title">Here4CUT 완성! 🎉</div>
+        <div class="result-img-wrap">
+          <img id="result-img" src="" alt="최종 결과물">
+        </div>
+        <div style="width:100%; display:flex; flex-direction:column; gap:5px;">
+          <p style="text-align:center; font-size:12px; color:#999; margin:0 0 5px 0;">사진을 길게 누르면 바로 저장할 수 있어요!</p>
+          <button class="btn-main" onclick="downloadResult()">이미지 파일로 다운로드</button>
+          <button class="btn-main" style="background:#333; box-shadow:none;" onclick="location.reload()">다시 찍기</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <canvas id="capture-canvas" style="display:none;"></canvas>
+
+  <script>
+    let stream = null;
+    let capturedImages = [];
+    let selectedImages = []; 
+    const currentFrameUrl = 'images/frame1.png'; 
+
+    function goTo(screenId) {
+      document.querySelectorAll('.screen').forEach(scr => scr.classList.remove('active'));
+      document.getElementById(screenId).classList.add('active');
+    }
+
+    async function startFlow() {
+      goTo('scr-shoot');
+      const video = document.getElementById('webcam');
+      
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { 
+            facingMode: 'user',
+            width: { ideal: 1280 }, 
+            height: { ideal: 720 } 
+          },
+          audio: false
+        });
+        video.srcObject = stream;
+      } catch (err) {
+        alert('카메라 실행에 실패했습니다. 상단 주소창 옆 권한 설정을 확인해 주세요.');
+        goTo('scr-ready');
+        return;
+      }
+
+      capturedImages = [];
+      let shootCount = 0;
+      const totalShoots = 6; 
+      
+      async function runTimer() {
+        if (shootCount >= totalShoots) {
+          if (stream) stream.getTracks().forEach(track => track.stop());
+          setupSelectScreen();
+          goTo('scr-select');
+          return;
+        }
+
+        shootCount++;
+        document.getElementById('shoot-progress').innerText = `${shootCount} / ${totalShoots} 번째 촬영`;
+        
+        let count = 5;
+        const counterTxt = document.getElementById('counter-txt');
+        counterTxt.style.display = 'block';
+        counterTxt.innerText = count;
+
+        const countdownInterval = setInterval(() => {
+          count--;
+          if (count > 0) {
+            counterTxt.innerText = count;
+          } else {
+            clearInterval(countdownInterval);
+            counterTxt.style.display = 'none';
+            capturePhoto();
+            setTimeout(runTimer, 500);
+          }
+        }, 1000);
+      }
+      setTimeout(runTimer, 1000);
+    }
+
+    function capturePhoto() {
+      const video = document.getElementById('webcam');
+      const canvas = document.getElementById('capture-canvas');
+      const ctx = canvas.getContext('2d');
+      
+      canvas.width = 1440;
+      canvas.height = 1920; 
+      
+      const vW = video.videoWidth;
+      const vH = video.videoHeight;
+      const targetAspect = 3 / 4;
+      
+      let sWidth, sHeight, sx, sy;
+      
+      if (vW / vH > targetAspect) {
+        sHeight = vH;
+        sWidth = vH * targetAspect;
+        sx = (vW - sWidth) / 2;
+        sy = 0;
+      } else {
+        sWidth = vW;
+        sHeight = vW / targetAspect;
+        sx = 0;
+        sy = (vH - sHeight) / 2;
+      }
+
+      ctx.translate(canvas.width, 0);
+      ctx.scale(-1, 1);
+      ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, canvas.width, canvas.height);
+      
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+      capturedImages.push(dataUrl);
+      
+      const flash = document.createElement('div');
+      flash.style.position = 'absolute';
+      flash.style.top = 0; flash.style.left = 0; flash.style.width = '100%'; flash.style.height = '100%';
+      flash.style.background = '#fff'; flash.style.zIndex = 999;
+      document.getElementById('scr-shoot').appendChild(flash);
+      setTimeout(() => flash.remove(), 150);
+    }
+
+    function setupSelectScreen() {
+      const grid = document.getElementById('select-grid');
+      grid.innerHTML = '';
+      selectedImages = [];
+      updateSelectButton();
+
+      capturedImages.forEach((imgSrc, index) => {
+        const box = document.createElement('div');
+        box.className = 'sel-img-box';
+        box.innerHTML = `
+          <img src="${imgSrc}" style="width:100%; height:100%; object-fit:cover;" alt="촬영본 ${index+1}">
+          <div class="sel-num"></div>
+        `;
+        
+        box.onclick = () => {
+          const idx = selectedImages.indexOf(index); 
+          if (idx > -1) {
+            selectedImages.splice(idx, 1); 
+            box.classList.remove('selected');
+          } else {
+            if (selectedImages.length >= 4) {
+              alert('사진은 4장만 골라주세요!');
+              return;
+            }
+            selectedImages.push(index); 
+            box.classList.add('selected');
+          }
+          
+          document.querySelectorAll('.sel-img-box').forEach((el, i) => {
+            const sIdx = selectedImages.indexOf(i);
+            el.querySelector('.sel-num').innerText = sIdx > -1 ? sIdx + 1 : '';
+          });
+          
+          document.getElementById('sel-count').innerText = selectedImages.length;
+          updateSelectButton();
+        };
+        grid.appendChild(box);
+      });
+    }
+
+    function updateSelectButton() {
+      const btn = document.getElementById('btn-select-next');
+      btn.disabled = selectedImages.length !== 4;
+    }
+
+    function goToFrameScreen() {
+      goTo('scr-frame');
+      drawPreview();
+    }
+
+    function drawPreview() {
+      const canvas = document.getElementById('preview-canvas');
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width;  
+      const h = canvas.height; 
+      
+      ctx.clearRect(0, 0, w, h);
+      
+      const bgImg = new Image();
+      bgImg.src = currentFrameUrl;
+      bgImg.onload = () => {
+        ctx.drawImage(bgImg, 0, 0, w, h);
+        
+        const imgW = 920;
+        const imgH = 1226; 
+        const gapX = 72;
+        const gapY = 72;
+        const startX = (w - (imgW * 2 + gapX)) / 2; 
+        const startY = 600; 
+
+        let loadedCount = 0;
+        selectedImages.forEach((imgIndex, index) => {
+          const img = new Image();
+          img.src = capturedImages[imgIndex]; 
+          img.onload = () => {
+            loadedCount++;
+            
+            const col = index % 2;
+            const row = Math.floor(index / 2);
+            const x = startX + col * (imgW + gapX);
+            const y = startY + row * (imgH + gapY);
+            
+            ctx.drawImage(img, x, y, imgW, imgH);
+            
+            if (loadedCount === 4) {
+              drawBrandText(ctx, w, h);
+            }
+          };
+        });
+      };
+    }
+
+    function drawBrandText(ctx, w, h) {
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.25)';
+      ctx.shadowBlur = 16;
+      
+      ctx.font = 'bold 128px sans-serif';
+      ctx.fillText('✨ Here4CUT ✨', w / 2, 280);
+      ctx.font = '500 64px sans-serif';
+      ctx.fillText('4-Cut Photo App', w / 2, 400);
+      
+      ctx.font = 'bold 104px sans-serif';
+      ctx.fillText('Here4CUT', w / 2, h - 280);
+      ctx.font = '500 56px sans-serif';
+      ctx.fillText('Take your memory in nature', w / 2, h - 180);
+      
+      ctx.shadowBlur = 0;
+    }
+
+    // [수정] 보안 우회용 try-catch 로직 탑재
+    function generateResult() {
+      try {
+        const canvas = document.getElementById('preview-canvas');
+        const resultImg = document.getElementById('result-img');
+        resultImg.src = canvas.toDataURL('image/png');
+        goTo('scr-result');
+      } catch (err) {
+        console.error(err);
+        alert("⚠️ 보안 오류가 발생했습니다!\n\n현재 로컬 파일(file:///) 상태로 더블 클릭하여 실행 중이신가요?\n\n브라우저 보안 정책상 파일 직접 실행 시 이미지 합성과 저장이 차단됩니다. VS Code의 'Live Server'로 실행하시거나 GitHub Pages에 올려서 테스트해 주세요!");
+      }
+    }
+
+    // [수정] PC 환경 브라우저 다운로드 무시 버그 해결 (DOM에 임시 탑재 후 클릭)
+    function downloadResult() {
+      try {
+        const canvas = document.getElementById('preview-canvas');
+        const link = document.createElement('a');
+        link.download = 'Here4CUT_' + Date.now() + '.png';
+        link.href = canvas.toDataURL('image/png');
+        
+        // PC 브라우저 대응을 위해 임시로 DOM 구조에 배치 후 클릭 처리
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } catch (err) {
+        console.error(err);
+        alert("⚠️ 보안 오류로 파일 저장이 불가능합니다.\n\n웹 서버(VS Code Live Server 또는 GitHub Pages) 환경에서 실행해 주세요!");
+      }
+    }
+  </script>
+</body>
+</html>
