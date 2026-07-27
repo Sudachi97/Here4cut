@@ -211,17 +211,17 @@
       </div>
     </div>
 
-    <!-- 7. RESULT 화면 -->
+    <!-- 7. RESULT 화면 (처음으로 돌아가기 버튼 반영) -->
     <div class="screen" id="scr-result">
       <div class="content">
         <div class="top-title">Here4CUT 완성! 🎉</div>
         <div class="result-img-wrap">
           <img id="result-img" src="" alt="최종 결과물">
         </div>
-        <div style="width:100%; display:flex; flex-direction:column; gap:5px;">
-          <p style="text-align:center; font-size:12px; color:#999; margin:0 0 5px 0;">사진을 길게 누르면 바로 저장할 수 있어요!</p>
+        <div style="width:100%; display:flex; flex-direction:column; gap:8px;">
+          <p style="text-align:center; font-size:12px; color:#999; margin:0 0 4px 0;">사진을 길게 누르면 바로 저장할 수 있어요!</p>
           <button class="btn-main" onclick="downloadResult()">이미지 파일로 다운로드</button>
-          <button class="btn-main" style="background:#333; box-shadow:none;" onclick="location.reload()">다시 찍기</button>
+          <button class="btn-main" style="background:#333; box-shadow:none;" onclick="resetApp()">🏠 처음으로 돌아가기</button>
         </div>
       </div>
     </div>
@@ -448,7 +448,6 @@
       ctx.shadowBlur = 0;
     }
 
-    // [수정] 보안 우회용 try-catch 로직 탑재
     function generateResult() {
       try {
         const canvas = document.getElementById('preview-canvas');
@@ -461,7 +460,6 @@
       }
     }
 
-    // [수정] PC 환경 브라우저 다운로드 무시 버그 해결 (DOM에 임시 탑재 후 클릭)
     function downloadResult() {
       try {
         const canvas = document.getElementById('preview-canvas');
@@ -469,7 +467,6 @@
         link.download = 'Here4CUT_' + Date.now() + '.png';
         link.href = canvas.toDataURL('image/png');
         
-        // PC 브라우저 대응을 위해 임시로 DOM 구조에 배치 후 클릭 처리
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -477,6 +474,20 @@
         console.error(err);
         alert("⚠️ 보안 오류로 파일 저장이 불가능합니다.\n\n웹 서버(VS Code Live Server 또는 GitHub Pages) 환경에서 실행해 주세요!");
       }
+    }
+
+    /* [새로 추가] 초기 화면으로 돌아가기 기능 */
+    function resetApp() {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        stream = null;
+      }
+      capturedImages = [];
+      selectedImages = [];
+      document.getElementById('sel-count').innerText = '0';
+      document.getElementById('select-grid').innerHTML = '';
+      document.getElementById('result-img').src = '';
+      goTo('scr-index');
     }
   </script>
 </body>
